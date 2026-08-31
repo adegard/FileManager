@@ -5,10 +5,13 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.os.Bundle
+import android.util.Log
 import android.view.GestureDetector
 import android.view.Menu
 import android.view.MenuItem
 import android.view.MotionEvent
+import android.view.View
+import android.widget.EditText
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -22,7 +25,7 @@ import kotlinx.coroutines.*
 
 class PreviewActivity : AppCompatActivity() {
 
-    private lateinit var txtContent: TextView
+    private lateinit var txtContent: EditText
     private lateinit var imgContent: ImageView
     private lateinit var progress: ProgressBar
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -30,6 +33,10 @@ class PreviewActivity : AppCompatActivity() {
     private var imageFile: File? = null
     private var originalBitmap: Bitmap? = null
     private var rotation = 0f
+
+    private var textFile: File? = null
+    private var textEditable = false
+    private var textTruncated = false
 
     private var imageFiles = listOf<File>()
     private var currentIndex = -1
@@ -88,10 +95,21 @@ class PreviewActivity : AppCompatActivity() {
         return true
     }
 
+    override fun onPrepareOptionsMenu(menu: Menu): Boolean {
+        val isImage = imageFile != null
+        menu.findItem(R.id.action_rotate)?.isVisible = isImage
+        menu.findItem(R.id.action_share)?.isVisible = isImage
+        menu.findItem(R.id.action_save)?.isVisible = textEditable
+        menu.findItem(R.id.action_share_text)?.isVisible = !isImage && textFile != null
+        return super.onPrepareOptionsMenu(menu)
+    }
+
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.action_rotate -> { rotate(); true }
             R.id.action_share -> { shareImage(); true }
+            R.id.action_save -> { saveText(); true }
+            R.id.action_share_text -> { shareText(); true }
             else -> super.onOptionsItemSelected(item)
         }
     }
@@ -134,9 +152,14 @@ class PreviewActivity : AppCompatActivity() {
 
     private fun load(file: File) {
         progress.visibility = ProgressBar.VISIBLE
+        textFile = null
+        textEditable = false
+        textTruncated = false
+        imageFile = null
+        invalidateOptionsMenu()
         val ext = file.extension.lowercase()
 
-        if (ext in setOf("png", "webp", "jpg", "jpeg", "gif", "bmp")) {
+        if (ext in IMAGE_EXTS) {
             imageFile = file
             invalidateOptionsMenu()
             scope.launch(Dispatchers.IO) {
@@ -150,37 +173,85 @@ class PreviewActivity : AppCompatActivity() {
                     if (bmp != null) {
                         originalBitmap = bmp
                         rotation = 0f
-                        txtContent.visibility = TextView.GONE
-                        imgContent.visibility = ImageView.VISIBLE
+                        txtContent.visibility = View.GONE
+                        imgContent.visibility = View.VISIBLE
                         imgContent.setImageBitmap(bmp)
                     } else {
-                        txtContent.text = "Unable to decode image"
-                        txtContent.visibility = TextView.VISIBLE
-                        imgContent.visibility = ImageView.GONE
+                        txtContent.setText("Unable to decode image")
+                        txtContent.visibility = View.VISIBLE
+                        imgContent.visibility = View.GONE
                     }
                 }
             }
         } else {
             scope.launch(Dispatchers.IO) {
-                val text = when (ext) {
-                    "docx" -> readDocx(file)
-                    "doc" -> "Legacy .doc binary files are not supported for text preview.\nExport as .docx or .txt for a readable preview."
-                    else -> readText(file)
+                val docx = ext == "docx"
+                val doc = ext == "doc"
+                val text = when {
+                    doc -> "Legacy .doc binary files are not supported for text editing.\nExport as .docx or .txt for a readable preview."
+                    docx -> readDocx(file)
+                    else -> readText(file, truncated = { textTruncated = true })
                 }
                 withContext(Dispatchers.Main) {
                     progress.visibility = ProgressBar.GONE
-                    txtContent.visibility = TextView.VISIBLE
-                    imgContent.visibility = ImageView.GONE
-                    txtContent.text = text ?: "Unable to read file"
+                    txtContent.visibility = View.VISIBLE
+                    imgContent.visibility = View.GONE
+                    txtContent.setText(text ?: "Unable to read file")
+                    txtContent.isFocusableInTouchMode = true
+                    txtContent.isFocusable = true
+                    txtContent.isEnabled = true
+                    textFile = file
+                    textEditable = !doc && !docx
+                    invalidateOptionsMenu()
                 }
             }
         }
     }
 
-    private fun readText(file: File): String? {
+    private fun saveText() {
+        val f = textFile ?: return
+        if (textTruncated) {
+            Toast.makeText(this, "This file was truncated when opened; saving overwrites the whole file.", Toast.LENGTH_LONG).show()
+        }
+        val content = txtContent.text.toString()
+        scope.launch(Dispatchers.IO) {
+            val ok = try {
+                f.writeBytes(content.toByteArray(Charsets.UTF_8))
+                true
+            } catch (e: Exception) {
+                Log.e("FileManager", "save failed", e)
+                false
+            }
+            withContext(Dispatchers.Main) {
+                if (ok) {
+                    Toast.makeText(this@PreviewActivity, "Saved", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this@PreviewActivity, "Save failed", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun shareText() {
+        val f = textFile ?: return
+        try {
+            val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", f)
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(intent, "Share text"))
+        } catch (e: Exception) {
+            Toast.makeText(this, "Unable to share", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun readText(file: File, truncated: () -> Unit = {}): String? {
         return try {
             val maxBytes = 2 * 1024 * 1024L
             if (file.length() > maxBytes) {
+                truncated()
                 val head = file.inputStream().use {
                     val buf = ByteArray(maxBytes.toInt())
                     val read = it.read(buf)

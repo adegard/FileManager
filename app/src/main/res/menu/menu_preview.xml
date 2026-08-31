@@ -3,6 +3,17 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
+        android:id="@+id/action_save"
+        android:title="Save"
+        android:icon="@drawable/ic_save"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_share_text"
+        android:title="Share text"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_rotate"
         android:title="Rotate"
         android:icon="@drawable/ic_rotate"

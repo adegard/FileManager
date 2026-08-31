@@ -8,7 +8,7 @@ A lightweight, open-source Android file manager. Browse your device's storage, p
 
 - 📁 Browse the full filesystem (all-files access on Android 11+)
 - 🖼️ Image preview with **swipe left/right** to navigate, rotate, and share
-- 📝 Text preview (TXT, LOG, MD, JSON, XML, CSV, HTML) and **DOCX** reading
+- 📝 **Edit & save** text files (TXT, PY, JSON, JS, config, etc.) plus DOCX viewing
 - 📦 **ZIP / APK / EPUB** extraction with path-traversal protection
 - 📲 **Install APK** with robust unknown-source permission handling
 - 👁️ Auto **grid view with large thumbnails** for image-heavy folders

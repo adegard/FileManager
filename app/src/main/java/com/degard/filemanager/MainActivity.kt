@@ -176,8 +176,11 @@ class MainActivity : AppCompatActivity() {
             options.add(Pair(getString(R.string.preview)) { openPreview(f) })
         }
 
-        if (ext in setOf("txt", "doc", "docx", "log", "md", "json", "xml", "csv", "html", "htm")) {
-            options.add(Pair("View as text") { openPreview(f) })
+        if (ext in setOf("txt", "doc", "docx", "log", "md", "json", "xml", "csv", "html", "htm",
+                "py", "js", "ts", "kt", "java", "c", "cpp", "h", "sh", "bat", "yml", "yaml",
+                "ini", "cfg", "conf", "properties", "gitignore", "env") ||
+                f.name == ".gitignore" || f.name == "Dockerfile" || f.name == "Makefile") {
+            options.add(Pair(if (ext in setOf("doc", "docx")) "View as text" else "View / Edit as text") { openPreview(f) })
         }
 
         if (ext in setOf("zip", "apk", "epub", "doc", "docx", "pdf", "xls", "xlsx",
