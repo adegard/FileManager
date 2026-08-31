@@ -27,6 +27,7 @@
             android:scrollbars="vertical"
             android:textSize="14sp"
             android:textColor="@color/text_primary"
+            android:textIsSelectable="true"
             android:fontFamily="monospace" />
 
         <ImageView

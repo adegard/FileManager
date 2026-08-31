@@ -177,7 +177,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (ext in setOf("txt", "doc", "docx", "log", "md", "json", "xml", "csv", "html", "htm")) {
-            options.add(Pair("View / Edit as text") { openPreview(f) })
+            options.add(Pair("View as text") { openPreview(f) })
         }
 
         if (ext in setOf("zip", "apk", "epub", "doc", "docx", "pdf", "xls", "xlsx",
@@ -196,6 +196,7 @@ class MainActivity : AppCompatActivity() {
 
         options.add(Pair(getString(R.string.delete)) { confirmDelete(f) })
         options.add(Pair(getString(R.string.rename)) { promptRename(f) })
+        options.add(Pair("Properties") { showProperties(f) })
 
         val names = options.map { it.first }.toTypedArray()
         AlertDialog.Builder(this)
@@ -423,6 +424,46 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun showProperties(f: File) {
+        val sb = StringBuilder()
+        sb.append("Name: ").append(f.name).append('\n')
+        sb.append("Type: ").append(if (f.isDirectory) "Folder" else {
+            val mime = guessMime(f.name)
+            if (mime == "*/*") f.extension.ifEmpty { "File" } else mime
+        }).append('\n')
+        sb.append("Path: ").append(f.absolutePath).append('\n')
+
+        if (f.isDirectory) {
+            val children = f.listFiles().orEmpty()
+            val subdirs = children.count { it.isDirectory }
+            val files = children.count { it.isFile }
+            val totalSize = children.sumOf { if (it.isFile) it.length() else 0L }
+            sb.append("Items: ").append(children.size).append('\n')
+            sb.append("  Folders: ").append(subdirs).append('\n')
+            sb.append("  Files: ").append(files).append('\n')
+            sb.append("File size (direct): ").append(StorageInfo.formatSize(totalSize)).append('\n')
+        } else {
+            sb.append("Size: ").append(StorageInfo.formatSize(f.length())).append("  (${f.length()} bytes)").append('\n')
+        }
+
+        val df = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
+        sb.append("Modified: ").append(df.format(java.util.Date(f.lastModified()))).append('\n')
+
+        if (!f.canRead()) sb.append("Readable: No\n")
+        if (!f.canWrite()) sb.append("Writable: No\n")
+
+        AlertDialog.Builder(this)
+            .setTitle("Properties")
+            .setMessage(sb.toString())
+            .setPositiveButton(android.R.string.ok, null)
+            .setNeutralButton("Copy path") { _, _ ->
+                (getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
+                    .setPrimaryClip(android.content.ClipData.newPlainText("path", f.absolutePath))
+                Toast.makeText(this, "Path copied", Toast.LENGTH_SHORT).show()
+            }
             .show()
     }
 

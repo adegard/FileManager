@@ -15,7 +15,12 @@ A lightweight, open-source Android file manager. Browse your device's storage, p
 - 🔍 Sort by name or date
 - 💾 Storage & RAM usage check
 - ✏️ Rename / delete files and folders
+- 📋 File **properties** dialog (path, size, type, modified date)
 - 🌓 Dark-mode aware colors
+
+## Screenshots
+
+![Main view](docs/screenshot-main.png)
 
 ## What's included
 
