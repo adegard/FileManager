@@ -1,3 +1,5 @@
+[![Buy me a coffee](https://cdn.buymeacoffee.com/buttons/v2/default-red.png)](https://www.buymeacoffee.com/adegard)
+
 # FileManager
 
 A lightweight, open-source Android file manager. Browse your device's storage, preview text and images, extract ZIP archives, install APKs, and more — all in a simple, fast app.
