@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">File Manager</string>
+    <string name="storage_title">Storage</string>
+    <string name="open">Open</string>
+    <string name="preview">Preview</string>
+    <string name="extract_here">Extract here</string>
+    <string name="extract_to">Extract to…</string>
+    <string name="delete">Delete</string>
+    <string name="rename">Rename</string>
+    <string name="extracting">Extracting…</string>
+    <string name="done">Done</string>
+    <string name="back">Back</string>
+    <string name="storage_check">Storage Check</string>
+    <string name="total">Total</string>
+    <string name="used">Used</string>
+    <string name="free">Free</string>
+    <string name="device_ram">Device RAM</string>
+</resources>
