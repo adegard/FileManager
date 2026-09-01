@@ -7,6 +7,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.BaseAdapter
+import android.widget.CheckBox
 import android.widget.ImageView
 import android.widget.TextView
 import java.io.File
@@ -28,6 +29,25 @@ class FileAdapter : BaseAdapter() {
 
     var gridMode: Boolean = false
 
+    var selectionMode: Boolean = false
+        set(value) {
+            field = value
+            notifyDataSetChanged()
+        }
+
+    private val selectedPaths = mutableSetOf<String>()
+
+    fun setSelected(paths: Set<String>) {
+        selectedPaths.clear()
+        selectedPaths.addAll(paths)
+        notifyDataSetChanged()
+    }
+
+    fun setSelected(path: String, selected: Boolean) {
+        if (selected) selectedPaths.add(path) else selectedPaths.remove(path)
+        notifyDataSetChanged()
+    }
+
     fun setItems(list: List<FileEntry>) {
         items.clear()
         items.addAll(list)
@@ -46,10 +66,19 @@ class FileAdapter : BaseAdapter() {
         val icon = view.findViewById<ImageView>(R.id.icon)
         val name = view.findViewById<TextView>(R.id.name)
         val meta = view.findViewById<TextView>(R.id.meta)
+        val check = view.findViewById<CheckBox>(R.id.check)
 
         val entry = items[position]
         val f = entry.file
         name.text = f.name
+
+        val isSelected = selectedPaths.contains(f.absolutePath)
+        check.visibility = if (selectionMode) View.VISIBLE else View.GONE
+        check.isChecked = isSelected
+        view.setBackgroundColor(
+            if (selectionMode && isSelected) parent.context.getColor(R.color.colorAccentSoft)
+            else android.graphics.Color.TRANSPARENT
+        )
 
         when {
             entry.isDirectory -> {

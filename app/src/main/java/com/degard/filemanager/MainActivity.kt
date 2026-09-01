@@ -33,6 +33,8 @@ class MainActivity : AppCompatActivity() {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var currentList = listOf<File>()
     private var sortByName = true
+    private val selected = mutableSetOf<String>()
+    private var selectionMode = false
 
     private val manageStorageLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
@@ -59,14 +61,26 @@ class MainActivity : AppCompatActivity() {
         listView.adapter = adapter
         gridView.adapter = adapter
 
-        val openItem = { pos: Int ->
+        val clickItem = { pos: Int ->
             val f = adapter.getItem(pos).file
-            if (f.isDirectory) navigate(f) else showFileActions(f)
+            if (selectionMode) {
+                toggleSelection(f)
+            } else if (f.isDirectory) {
+                navigate(f)
+            } else {
+                showFileActions(f)
+            }
         }
-        listView.setOnItemClickListener { _, _, pos, _ -> openItem(pos) }
-        gridView.setOnItemClickListener { _, _, pos, _ -> openItem(pos) }
-        listView.setOnItemLongClickListener { _, _, pos, _ -> showFileActions(adapter.getItem(pos).file); true }
-        gridView.setOnItemLongClickListener { _, _, pos, _ -> showFileActions(adapter.getItem(pos).file); true }
+        val longClickItem = { pos: Int ->
+            val f = adapter.getItem(pos).file
+            if (!selectionMode) enterSelectionMode()
+            toggleSelection(f)
+            true
+        }
+        listView.setOnItemClickListener { _, _, pos, _ -> clickItem(pos) }
+        gridView.setOnItemClickListener { _, _, pos, _ -> clickItem(pos) }
+        listView.setOnItemLongClickListener { _, _, pos, _ -> longClickItem(pos) }
+        gridView.setOnItemLongClickListener { _, _, pos, _ -> longClickItem(pos) }
 
         ensurePermission()
     }
@@ -152,6 +166,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onSupportNavigateUp(): Boolean {
+        if (selectionMode) {
+            exitSelectionMode()
+            return true
+        }
         val parent = currentDir.parentFile
         if (parent != null) {
             navigate(parent)
@@ -492,6 +510,17 @@ class MainActivity : AppCompatActivity() {
         return true
     }
 
+    override fun onPrepareOptionsMenu(menu: Menu): Boolean {
+        val selMode = selectionMode
+        menu.findItem(R.id.action_select)?.isVisible = !selMode
+        val hasSelection = selected.isNotEmpty()
+        menu.findItem(R.id.action_select_all)?.isVisible = selMode
+        menu.findItem(R.id.action_delete_selected)?.isVisible = selMode && hasSelection
+        menu.findItem(R.id.action_move_selected)?.isVisible = selMode && hasSelection
+        menu.findItem(R.id.action_done)?.isVisible = selMode
+        return super.onPrepareOptionsMenu(menu)
+    }
+
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.action_storage -> { showStorageDialog(); true }
@@ -499,7 +528,170 @@ class MainActivity : AppCompatActivity() {
             R.id.action_refresh -> { refresh(); true }
             R.id.action_sort_name -> { sortByName = true; refresh(); true }
             R.id.action_sort_date -> { sortByName = false; refresh(); true }
+            R.id.action_select -> { enterSelectionMode(); true }
+            R.id.action_select_all -> { selectAll(); true }
+            R.id.action_delete_selected -> { deleteSelected(); true }
+            R.id.action_move_selected -> { pickDestinationForMove(); true }
+            R.id.action_done -> { exitSelectionMode(); true }
             else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    private fun enterSelectionMode() {
+        selectionMode = true
+        selected.clear()
+        adapter.selectionMode = true
+        adapter.setSelected(emptySet())
+        updateSelectionTitle()
+        invalidateOptionsMenu()
+    }
+
+    private fun exitSelectionMode() {
+        selectionMode = false
+        selected.clear()
+        adapter.selectionMode = false
+        adapter.setSelected(emptySet())
+        supportActionBar?.title = currentDir.name.ifEmpty { "/" }
+        invalidateOptionsMenu()
+    }
+
+    private fun toggleSelection(f: File) {
+        val path = f.absolutePath
+        if (selected.contains(path)) selected.remove(path) else selected.add(path)
+        adapter.setSelected(path, selected.contains(path))
+        updateSelectionTitle()
+        invalidateOptionsMenu()
+    }
+
+    private fun selectAll() {
+        val all = currentList.map { it.absolutePath }
+        val allSelected = selected.size == currentList.size && currentList.isNotEmpty()
+        if (allSelected) selected.clear() else selected.addAll(all)
+        adapter.setSelected(selected.toSet())
+        updateSelectionTitle()
+        invalidateOptionsMenu()
+    }
+
+    private fun updateSelectionTitle() {
+        supportActionBar?.title = "${selected.size} selected"
+    }
+
+    private fun selectedFiles(): List<File> = currentList.filter { selected.contains(it.absolutePath) }
+
+    private fun deleteSelected() {
+        val files = selectedFiles()
+        if (files.isEmpty()) return
+        AlertDialog.Builder(this)
+            .setTitle("Delete ${files.size} item${if (files.size > 1) "s" else ""}?")
+            .setMessage("This cannot be undone.")
+            .setPositiveButton(getString(R.string.delete)) { _, _ ->
+                scope.launch(Dispatchers.IO) {
+                    var failed = 0
+                    for (f in files) {
+                        if (!deleteRecursive(f)) failed++
+                    }
+                    withContext(Dispatchers.Main) {
+                        exitSelectionMode()
+                        refresh()
+                        if (failed > 0) {
+                            Toast.makeText(this@MainActivity, "$failed item(s) could not be deleted", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun pickDestinationForMove() {
+        showFolderPicker(currentDir) { target ->
+            performMove(selectedFiles(), target)
+        }
+    }
+
+    private fun showFolderPicker(start: File, onPicked: (File) -> Unit) {
+        val dirs = start.listFiles()?.filter { it.isDirectory && !it.name.startsWith(".") }
+            ?.sortedBy { it.name.lowercase() }.orEmpty()
+        val labels = mutableListOf<String>()
+        val targets = mutableListOf<File>()
+        labels.add("✓ Move into: ${start.absolutePath}")
+        targets.add(start)
+        if (start.parentFile != null) {
+            labels.add(".. / (parent)")
+            targets.add(start.parentFile!!)
+        }
+        labels.add("＋ New folder here")
+        for (d in dirs) {
+            labels.add(d.name + "/")
+            targets.add(d)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Destination folder")
+            .setItems(labels.toTypedArray()) { _, which ->
+                val t = targets[which]
+                when {
+                    t == start -> onPicked(t)
+                    labels[which].startsWith("＋") -> promptNewFolder(start, onPicked)
+                    else -> showFolderPicker(t, onPicked)
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun promptNewFolder(parent: File, onPicked: (File) -> Unit) {
+        val input = androidx.appcompat.widget.AppCompatEditText(this)
+        AlertDialog.Builder(this)
+            .setTitle("New folder name")
+            .setView(input)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val name = input.text.toString().trim()
+                if (name.isNotEmpty()) {
+                    val dir = File(parent, name)
+                    if (dir.mkdirs()) showFolderPicker(dir, onPicked)
+                    else Toast.makeText(this, "Cannot create folder", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun performMove(files: List<File>, target: File) {
+        if (files.isEmpty()) return
+        if (!target.exists() && !target.mkdirs()) {
+            Toast.makeText(this, "Cannot create destination", Toast.LENGTH_LONG).show()
+            return
+        }
+        for (f in files) {
+            if (f == target) {
+                Toast.makeText(this, "Cannot move an item into itself", Toast.LENGTH_LONG).show()
+                return
+            }
+            if (f.isDirectory && target.absolutePath.startsWith(f.absolutePath + File.separator)) {
+                Toast.makeText(this, "Cannot move a folder into itself", Toast.LENGTH_LONG).show()
+                return
+            }
+        }
+        scope.launch(Dispatchers.IO) {
+            var failed = 0
+            for (f in files) {
+                if (!f.renameTo(File(target, f.name))) failed++
+            }
+            withContext(Dispatchers.Main) {
+                exitSelectionMode()
+                refresh()
+                if (failed > 0) {
+                    Toast.makeText(this@MainActivity, "$failed item(s) could not be moved", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    override fun onBackPressed() {
+        if (selectionMode) {
+            exitSelectionMode()
+        } else {
+            super.onBackPressed()
         }
     }
 

@@ -3,6 +3,31 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
+        android:id="@+id/action_select"
+        android:title="Select"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_select_all"
+        android:title="Select all"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_delete_selected"
+        android:title="Delete selected"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_move_selected"
+        android:title="Move selected"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_done"
+        android:title="Done"
+        app:showAsAction="always" />
+
+    <item
         android:id="@+id/action_storage"
         android:title="@string/storage_check"
         app:showAsAction="never" />
