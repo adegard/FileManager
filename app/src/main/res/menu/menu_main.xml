@@ -3,6 +3,16 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
+        android:id="@+id/action_new_folder"
+        android:title="New folder"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_new_file"
+        android:title="New file"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_select"
         android:title="Select"
         app:showAsAction="never" />

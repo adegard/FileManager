@@ -16,6 +16,7 @@ A lightweight, open-source Android file manager. Browse your device's storage, p
 - 👁️ Auto **grid view with large thumbnails** for image-heavy folders
 - 🔍 Sort by name or date
 - ☑️ **Multi-select** (long-press) with select-all, bulk **delete** and **move** to any folder
+- ➕ **Create new file** or **new folder** from the toolbar menu
 - 💾 Storage & RAM usage check
 - ✏️ Rename / delete files and folders
 - 📋 File **properties** dialog (path, size, type, modified date)

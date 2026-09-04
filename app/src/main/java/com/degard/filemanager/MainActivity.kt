@@ -513,6 +513,8 @@ class MainActivity : AppCompatActivity() {
     override fun onPrepareOptionsMenu(menu: Menu): Boolean {
         val selMode = selectionMode
         menu.findItem(R.id.action_select)?.isVisible = !selMode
+        menu.findItem(R.id.action_new_folder)?.isVisible = !selMode
+        menu.findItem(R.id.action_new_file)?.isVisible = !selMode
         val hasSelection = selected.isNotEmpty()
         menu.findItem(R.id.action_select_all)?.isVisible = selMode
         menu.findItem(R.id.action_delete_selected)?.isVisible = selMode && hasSelection
@@ -529,6 +531,8 @@ class MainActivity : AppCompatActivity() {
             R.id.action_sort_name -> { sortByName = true; refresh(); true }
             R.id.action_sort_date -> { sortByName = false; refresh(); true }
             R.id.action_select -> { enterSelectionMode(); true }
+            R.id.action_new_folder -> { createNewFolder(); true }
+            R.id.action_new_file -> { createNewFile(); true }
             R.id.action_select_all -> { selectAll(); true }
             R.id.action_delete_selected -> { deleteSelected(); true }
             R.id.action_move_selected -> { pickDestinationForMove(); true }
@@ -685,6 +689,53 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun createNewFolder() {
+        val input = androidx.appcompat.widget.AppCompatEditText(this)
+        input.hint = "Folder name"
+        AlertDialog.Builder(this)
+            .setTitle("New folder")
+            .setView(input)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val name = input.text.toString().trim()
+                if (name.isEmpty()) return@setPositiveButton
+                val dir = File(currentDir, name)
+                if (dir.exists()) {
+                    Toast.makeText(this, "Already exists", Toast.LENGTH_SHORT).show()
+                } else if (dir.mkdirs()) {
+                    refresh()
+                } else {
+                    Toast.makeText(this, "Cannot create folder", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun createNewFile() {
+        val input = androidx.appcompat.widget.AppCompatEditText(this)
+        input.hint = "Filename (e.g. notes.txt)"
+        AlertDialog.Builder(this)
+            .setTitle("New file")
+            .setView(input)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val name = input.text.toString().trim()
+                if (name.isEmpty()) return@setPositiveButton
+                val file = File(currentDir, name)
+                if (file.exists()) {
+                    Toast.makeText(this, "Already exists", Toast.LENGTH_SHORT).show()
+                } else {
+                    try {
+                        file.writeText("")
+                        refresh()
+                    } catch (e: Exception) {
+                        Toast.makeText(this, "Cannot create file", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     override fun onBackPressed() {
