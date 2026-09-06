@@ -30,8 +30,25 @@
 
         <activity
             android:name=".PreviewActivity"
-            android:exported="false"
-            android:configChanges="orientation|screenSize" />
+            android:exported="true"
+            android:configChanges="orientation|screenSize">
+            <intent-filter android:label="FileManager">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".PdfActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize">
+            <intent-filter android:label="FileManager PDF">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/pdf" />
+            </intent-filter>
+        </activity>
 
         <provider
             android:name="androidx.core.content.FileProvider"

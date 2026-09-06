@@ -194,6 +194,10 @@ class MainActivity : AppCompatActivity() {
             options.add(Pair(getString(R.string.preview)) { openPreview(f) })
         }
 
+        if (ext == "pdf") {
+            options.add(Pair("View PDF") { openPdf(f) })
+        }
+
         if (ext in setOf("txt", "doc", "docx", "log", "md", "json", "xml", "csv", "html", "htm",
                 "py", "js", "ts", "kt", "java", "c", "cpp", "h", "sh", "bat", "yml", "yaml",
                 "ini", "cfg", "conf", "properties", "gitignore", "env") ||
@@ -405,6 +409,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun openPreview(f: File) {
         startActivity(Intent(this, PreviewActivity::class.java).putExtra("path", f.absolutePath))
+    }
+
+    private fun openPdf(f: File) {
+        startActivity(Intent(this, PdfActivity::class.java).putExtra("path", f.absolutePath))
     }
 
     private fun confirmDelete(f: File) {

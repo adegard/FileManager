@@ -51,10 +51,12 @@ class PreviewActivity : AppCompatActivity() {
         progress = findViewById(R.id.progress)
         setSupportActionBar(findViewById(R.id.toolbar))
 
-        val path = intent.getStringExtra("path")
-        if (path == null) { finish(); return }
-        val file = File(path)
-        if (!file.exists()) { Toast.makeText(this, "File not found", Toast.LENGTH_SHORT).show(); finish(); return }
+        val file = resolveFile()
+        if (file == null || !file.exists()) {
+            Toast.makeText(this, "File not found", Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
 
         supportActionBar?.setTitle(file.name)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
@@ -80,6 +82,31 @@ class PreviewActivity : AppCompatActivity() {
         imgContent.setOnTouchListener { _, event -> gestureDetector.onTouchEvent(event) }
 
         load(file)
+    }
+
+    private fun resolveFile(): File? {
+        intent.getStringExtra("path")?.let { p ->
+            val f = File(p)
+            if (f.exists()) return f
+        }
+        val uri = intent.data ?: return null
+        return when (uri.scheme) {
+            "content" -> {
+                val mimeSuffix = contentResolver.getType(uri)?.substringAfter('/') ?: "img"
+                val name = uri.lastPathSegment ?: "image.$mimeSuffix"
+                val cached = File(cacheDir, name)
+                try {
+                    contentResolver.openInputStream(uri)?.use { input ->
+                        cached.outputStream().use { output -> input.copyTo(output) }
+                    }
+                    if (cached.exists()) cached else null
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            "file" -> File(uri.path ?: return null).takeIf { it.exists() }
+            else -> null
+        }
     }
 
     private fun showImage(index: Int) {
